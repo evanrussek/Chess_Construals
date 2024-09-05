@@ -284,7 +284,7 @@ def plot_heat_map(piece_heat_map, board: Optional[chess.BaseBoard] = None, *,
 
     return SvgWrapper(ET.tostring(svg).decode("utf-8"))
 
-def plot_samples(original_fen,selected_move,board_sample_df):
+def plot_samples(original_fen,selected_move,board_sample_df, size=400):
     original_board = chess.Board(original_fen)
     df = board_sample_df.copy()
     df['lik']/=df['lik'].sum()
@@ -294,4 +294,4 @@ def plot_samples(original_fen,selected_move,board_sample_df):
         for square,piece in chess.Board(fen).piece_map().items():
             piece_heat_map[square,piece.piece_type+(piece.color==chess.WHITE)*7]+=lik    
     
-    return plot_heat_map(piece_heat_map,original_board,arrows=[chess.svg.Arrow.from_pgn(selected_move)])            
+    return plot_heat_map(piece_heat_map,original_board,arrows=[chess.svg.Arrow.from_pgn(selected_move)], size=size)            
