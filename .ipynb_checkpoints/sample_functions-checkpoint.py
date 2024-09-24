@@ -99,9 +99,12 @@ def sample_construal(board,pdrop=0.5,pmove=0.2, move_selected = ''):
 def get_construal_selected_consideration_set(c_i, engine, n_moves = 10, eval_depth = 10):
 
     # returns the moves selected in a construal and their (processed values)
+    
+    #display(c_i)
+    
     engine.configure({"Clear Hash": None})
     info = engine.analyse(c_i, chess.engine.Limit(depth=eval_depth), multipv=n_moves)
-    # print(info)
+    #print(info)
 
     ci_selected_moves = []
     ci_selected_move_vals = []
@@ -176,6 +179,7 @@ def evaluate_chosen_move_and_alternates_in_c_i(c_i, move_selected_uci, engine, n
     
     # generate consideration set
     ci_consideration_set, _, _  = get_construal_selected_consideration_set(c_i, engine, n_moves = n_alternate_moves, eval_depth = eval_depth_consideration)
+    #print(ci_consideration_set)
     
     # remove the move selected to make the accounting simpler...
     alternate_ci_moves = ci_consideration_set[ci_consideration_set != move_selected_uci]
@@ -224,4 +228,55 @@ def compute_prob_move_g_construal(move_selected_uci, c_i, engine, beta_move = 50
 
 # compute_prob_move_g_construal('h3f3', c_i)
 
-# now just put things together to get the weighting...
+
+def compute_move_sample_res(sample_params, true_board, move_selected_uci, engine):
+    
+    # Get parameters to run the samples
+    n_samples = sample_params['n_samples']
+    n_alternate_moves = sample_params['n_alternate_moves']
+    eval_depth_consideration = sample_params['eval_depth_consideration']
+    eval_depth_evaluation = sample_params['eval_depth_evaluation']
+    p_drop = sample_params['p_drop']
+    p_move = sample_params['p_move']
+    
+    # Data strucs to save results
+    move_scores_res = np.zeros((n_samples, n_alternate_moves))
+    n_pieces_res = np.zeros((n_samples))
+    q_i_res = np.zeros((n_samples))
+    U_c_i_res = np.zeros((n_samples))
+    illegal_in_c_i_res = np.zeros((n_samples), dtype = bool)
+    n_available_moves_res = np.zeros((n_samples))
+    
+    for sample_idx in range(n_samples):
+
+        c_i, q_i_list, cost_info = sample_construal(true_board,pdrop=p_drop,pmove=p_move)
+        q_i = np.prod(q_i_list) # probability under sampling distribution
+        U_c_i = get_construal_utility_max(c_i, true_board, engine, eval_depth = 10)
+        n_pieces = cost_info['n_pieces_not_dropped']
+
+        if chess.Move.from_uci(move_selected_uci) in c_i.legal_moves:
+            move_selected_w_alternates_scores_processed, _ = evaluate_chosen_move_and_alternates_in_c_i(c_i, move_selected_uci, engine, n_alternate_moves = n_alternate_moves, eval_depth_consideration = eval_depth_consideration, eval_depth_evaluation = eval_depth_evaluation)
+
+            n_available_moves = min(len(move_selected_w_alternates_scores_processed), n_alternate_moves)
+            
+            if n_available_moves < n_alternate_moves:
+                move_score_processed = np.zeros(n_alternate_moves)
+                move_score_processed[:n_available_moves] =  move_selected_w_alternates_scores_processed
+            else:
+                move_score_processed = move_selected_w_alternates_scores_processed[:n_available_moves]
+
+            move_scores_res[sample_idx, :] = move_score_processed
+            n_pieces_res[sample_idx] = n_pieces
+            q_i_res[sample_idx] = q_i
+            U_c_i_res[sample_idx] = U_c_i
+            n_available_moves_res[sample_idx] = n_available_moves
+        else:
+            illegal_in_c_i_res[sample_idx] = True
+
+    this_move_sample_res = {'move_scores': move_scores_res,
+                      'n_pieces': n_pieces_res,
+                      'q_i': q_i_res,
+                      'U_c_i': U_c_i_res,
+                      'illegal_move': illegal_in_c_i_res}
+    
+    return this_move_sample_res
