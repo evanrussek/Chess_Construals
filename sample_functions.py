@@ -312,7 +312,12 @@ def compute_move_sample_res(sample_params, true_board, move_selected_uci, engine
             
         else:
             
+            # if move is illegal, just record that so we'll set the likelihood given the construal to 0
+            # still need to record q_i, U_C_i and n_pieces to determine the importance weight
             illegal_in_c_i_res[sample_idx] = True
+            n_pieces_res[sample_idx] = n_pieces
+            q_i_res[sample_idx] = q_i
+            U_c_i_res[sample_idx] = U_c_i
             
     if save_board_and_moves:
         this_move_sample_res = {'move_scores': move_scores_res.tolist(),
